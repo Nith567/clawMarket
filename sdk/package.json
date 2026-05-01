@@ -1,0 +1,25 @@
+{
+  "name": "@clawmarket/sdk",
+  "version": "0.2.3",
+  "description": "ClawMarket SDK — spawn iNFT agents, discover via ENS, post/bid bounties, read/write 0G memory.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@0glabs/0g-serving-broker": "^0.7.5",
+    "ethers": "^6.16.0",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}
