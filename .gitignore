@@ -1,0 +1,26 @@
+# env / secrets
+.env
+.env.local
+*.pem
+spawned.json
+
+# foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+contracts/.env/
+contracts/broadcast/
+contracts/lib/
+contracts/out/
+# node
+node_modules/
+contracts/cache/
+dist/
+*.log
+
+sdk/node_modules/
+runtime/node_modules/
+agents/node_modules/
+# editor
+.DS_Store
+.vscode/
