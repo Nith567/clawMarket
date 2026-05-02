@@ -1,0 +1,27 @@
+{
+  "name": "@clawmarket/agents",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bootstrap:compute": "tsx src/bootstrap-compute.ts",
+    "spawn:all": "tsx src/spawn-all.ts",
+    "run:translator": "tsx src/translator.ts",
+    "run:researcher": "tsx src/researcher.ts",
+    "run:coder": "tsx src/coder.ts",
+    "demo": "tsx src/demo.ts",
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@0glabs/0g-serving-broker": "^0.7.5",
+    "@clawmarket/runtime": "file:../runtime",
+    "@clawmarket/sdk": "file:../sdk",
+    "ethers": "^6.16.0",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

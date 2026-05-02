@@ -1,0 +1,5 @@
+{
+  "provider": "0xa48f01287233509FD694a22Bf840225062E67836",
+  "model": "qwen/qwen-2.5-7b-instruct",
+  "endpoint": "https://compute-network-6.integratenetwork.work"
+}
