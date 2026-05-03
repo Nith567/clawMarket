@@ -16,17 +16,24 @@
 
 import { readFileSync } from "node:fs";
 import { ClawAgent, Poster } from "@clawmarket/runtime";
-import { TRANSLATOR, RESEARCHER, CODER, AXL_PEER, AXL_URL } from "./personas.js";
+import { TRANSLATOR, RESEARCHER, CODER, POSTER_AXL } from "./personas.js";
 import { privateKeyToAccount } from "viem/accounts";
 import type { Hex } from "viem";
 import { resolve as resolveAgent, PARENT_DOMAIN } from "@clawmarket/sdk";
 
-const PK = (process.env.AGENT_PRIVATE_KEY ?? " ") as Hex;
+const PK = process.env.AGENT_PRIVATE_KEY as Hex;
+if (!PK) throw new Error("AGENT_PRIVATE_KEY missing — set it in agents/.env");
 
 interface SpawnRecord {
   inftId: string;
   fqdn: string;
 }
+
+// Don't let stray background promise rejections (e.g. flaky 0G storage uploads) kill the demo.
+process.on("unhandledRejection", (e) => {
+  const msg = (e as Error)?.message ?? String(e);
+  console.warn("[bg] swallowed unhandled rejection:", msg.slice(0, 200));
+});
 
 async function main() {
   const spawned: Record<string, SpawnRecord> = JSON.parse(
@@ -42,19 +49,23 @@ async function main() {
   ];
   for (const a of agents) a.start();
 
-  // ----- 2) poster runs the auction -----
+  // ----- 2) poster runs the auction on its OWN AXL node -----
   const poster = new Poster({
     privateKey: PK,
-    axlPeerId: AXL_PEER,
-    axlUrl: AXL_URL,
+    axlPeerId: POSTER_AXL.peerId,
+    axlUrl: POSTER_AXL.url,
     bidWindowMs: 6_000,
   });
 
   // small banner
   const me = privateKeyToAccount(PK).address;
   console.log("\n=========================================");
-  console.log(" ClawMarket demo — peer:", AXL_PEER.slice(0, 10), "…");
-  console.log(" Poster wallet:", me);
+  console.log(" ClawMarket demo — 4-node AXL mesh");
+  console.log(" Poster node     :", POSTER_AXL.url, POSTER_AXL.peerId.slice(0, 12) + "…");
+  console.log(" Translator node :", TRANSLATOR.axlUrl, TRANSLATOR.axlPeerId.slice(0, 12) + "…");
+  console.log(" Researcher node :", RESEARCHER.axlUrl, RESEARCHER.axlPeerId.slice(0, 12) + "…");
+  console.log(" Coder node      :", CODER.axlUrl, CODER.axlPeerId.slice(0, 12) + "…");
+  console.log(" Poster wallet   :", me);
   console.log("=========================================\n");
 
   // give the agents a beat to attach their watchers
@@ -76,9 +87,18 @@ async function main() {
   console.log("\n=========================================");
   console.log(" 🪪  Live ENS state for the winning agent");
   console.log("=========================================");
-  // Give CCIP-Read a beat to settle
-  await new Promise((r) => setTimeout(r, 4_000));
-  const profile = await resolveAgent(job.winner);
+
+  // Poll until the agent's post-delivery memory pin lands on ENS (max 120s).
+  // The agent's putKV + pinMemoryToENS run AFTER settle(), so we wait for
+  // the new real 0x... root to overwrite any prior MockCID.
+  console.log(" (waiting for post-delivery memory pin to land on ENS...)");
+  let profile = await resolveAgent(job.winner);
+  const deadlineAt = Date.now() + 120_000;
+  while (Date.now() < deadlineAt) {
+    profile = await resolveAgent(job.winner);
+    if (profile?.memoryCID?.startsWith("0x") && profile.memoryCID.length >= 64) break;
+    await new Promise((r) => setTimeout(r, 4_000));
+  }
   if (!profile) {
     console.log(" (could not resolve — try in a few seconds)");
   } else {
