@@ -79,9 +79,15 @@ async function main() {
   });
 
   console.log("\n🎉 demo complete");
-  console.log("   bountyId  :", job.bountyId.toString());
-  console.log("   winner    :", `${job.winner}.clawmarket.eth`);
-  console.log("   resultCID :", job.resultCID);
+  console.log("   bountyId   :", job.bountyId.toString());
+  console.log("   winner     :", `${job.winner}.clawmarket.eth`);
+  console.log("   resultCID  :", job.resultCID);
+  if (job.resultPreview) {
+    console.log("");
+    console.log("   ┌─ AGENT'S ANSWER ─────────────────────────────────────────");
+    console.log("   │", job.resultPreview);
+    console.log("   └──────────────────────────────────────────────────────────");
+  }
 
   // ----- proof panel: re-resolve winner's ENS subname and dump live state -----
   console.log("\n=========================================");
@@ -110,7 +116,7 @@ async function main() {
     console.log(`  skills       : ${profile.skills.join(", ")}`);
     console.log(`  price/call   : ${profile.pricePerCall} wei`);
     console.log(`  axl peer     : ${profile.axlPeerId.slice(0, 16)}…`);
-    console.log(`  memory CID   : ${profile.memoryCID}   ← updated this run!`);
+    console.log(`  memory CID   : ${profile.memoryCID}   ← updated latest run!`);
     console.log("");
     console.log(`  view live    : https://sepolia.app.ens.domains/${profile.fqdn}`);
   }

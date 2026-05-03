@@ -42,7 +42,7 @@ export class Poster {
     requiredSkill: string;
     amountWei: bigint;
     deadlineSec?: number;
-  }): Promise<{ bountyId: bigint; winner: string; resultCID: string }> {
+  }): Promise<{ bountyId: bigint; winner: string; resultCID: string; resultPreview: string }> {
     const deadline = Math.floor(Date.now() / 1000) + (input.deadlineSec ?? 600);
 
     // 1) Stash task spec on 0G Storage (Log "tasks") -> CID
@@ -54,18 +54,26 @@ export class Poster {
 
     // 2) Open the bid subscription FIRST — agents may bid the instant the chain
     //    event lands and we'd lose those bids if we subscribed after postBounty.
+    //    The same channel also carries DELIVER envelopes from the winning agent
+    //    (containing a preview of the inference output).
     const bids: BidMessage[] = [];
+    let resultPreview = "";
     let knownBountyId: string | null = null;
     const unsub = this.axl.subscribe(
       (ch) => ch.startsWith("bounty:"),
       (env) => {
-        const e = env.payload as BidMessage;
-        if (e?.type !== "BID") return;
-        if (knownBountyId && e.bountyId !== knownBountyId) return;
-        bids.push(e);
-        this.log("BID recv", { from: e.agentLabel, price: e.priceWei, eta: e.etaSec });
-        // Cache task spec for the bidder so it can fetch it post-accept
-        putKV(`agent:${e.agentLabel}`, `task:${knownBountyId ?? e.bountyId}`, taskCID, { privateKey: this.cfg.privateKey }).catch(() => {});
+        const e = env.payload as BidMessage | { type: "DELIVER"; bountyId: string; resultPreview?: string };
+        if (e?.type === "BID") {
+          if (knownBountyId && e.bountyId !== knownBountyId) return;
+          bids.push(e);
+          this.log("BID recv", { from: e.agentLabel, price: e.priceWei, eta: e.etaSec });
+          // Cache task spec for the bidder so it can fetch it post-accept
+          putKV(`agent:${e.agentLabel}`, `task:${knownBountyId ?? e.bountyId}`, taskCID, { privateKey: this.cfg.privateKey }).catch(() => {});
+        } else if (e?.type === "DELIVER") {
+          if (knownBountyId && e.bountyId !== knownBountyId) return;
+          resultPreview = e.resultPreview ?? "";
+          this.log("DELIVER recv (over AXL)", { preview: resultPreview.slice(0, 160) });
+        }
       },
     );
 
@@ -87,11 +95,14 @@ export class Poster {
       if (bids[i].bountyId !== knownBountyId) bids.splice(i, 1);
     }
 
-    // 4) Wait for the bid window
+    // 4) Wait for the bid window (subscription stays open through delivery so
+    //    the winning agent's DELIVER preview can also be captured).
     await new Promise((r) => setTimeout(r, this.cfg.bidWindowMs ?? 5_000));
-    unsub();
 
-    if (bids.length === 0) throw new Error("no bids received");
+    if (bids.length === 0) {
+      unsub();
+      throw new Error("no bids received");
+    }
 
     // 4) Pick cheapest qualified bidder; resolve their iNFT id from ENS for cross-check
     bids.sort((a, b) => Number(BigInt(a.priceWei) - BigInt(b.priceWei)));
@@ -133,7 +144,15 @@ export class Poster {
     const settleTx = await settleBounty(this.cfg.privateKey, bountyId, 5, "");
     this.log("SETTLED ✅", { bountyId: bountyId.toString(), url: ogTx(settleTx) });
 
-    return { bountyId, winner: winner.agentLabel, resultCID };
+    // Keep the AXL DELIVER subscription alive a beat longer if it hasn't fired yet
+    if (!resultPreview) {
+      for (let i = 0; i < 20 && !resultPreview; i++) {
+        await new Promise((r) => setTimeout(r, 200));
+      }
+    }
+    unsub();
+
+    return { bountyId, winner: winner.agentLabel, resultCID, resultPreview };
   }
 
   private log(msg: string, extra?: Record<string, unknown>) {
