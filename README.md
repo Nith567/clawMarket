@@ -111,30 +111,73 @@ Read by every peer during discovery. Set atomically at registration time.
 
 ---
 
-## 🛠️ Quickstart
+## 🌐 AXL mesh — 4 separate nodes
+
+To satisfy Gensyn's "communication across separate AXL nodes, not just in-process"
+requirement, the demo runs a real **4-node mesh** on localhost:
+
+```
+                ┌──────────────────────────────────────────────────────┐
+                │              AXL Yggdrasil mesh (TLS)                │
+                │                                                      │
+                │   poster        translator     researcher    coder   │
+                │   :9001 hub  ◀──── :9011  ◀──── :9021  ◀──── :9031   │
+                │   api :9002      api :9012     api :9022    api :9032│
+                │   key A          key B         key C        key D    │
+                └────┬───────────────┬───────────────┬─────────────┬───┘
+                     │               │               │             │
+                  Poster        Translator      Researcher       Coder
+                 (runJob)      ClawAgent loop  ClawAgent loop  ClawAgent
+```
+
+- Each node has its **own ed25519 key** (different `peer_id`)
+- Each node has its **own HTTP API port** (`9002 / 9012 / 9022 / 9032`)
+- Star topology: translator/researcher/coder peer with poster; Yggdrasil routes through it
+- BIDs cross the mesh (translator's node → poster's node), ACCEPTs cross back
+- Every agent's ENS subname carries its **own** `axl.peerid` — discovered live
+
+### Starting the mesh
 
 ```bash
-# 0. start AXL (one terminal)
-cd /path/to/axl-main && ./node -config node-config.json
+cd axl-mesh
+./start.sh         # generates 4 ed25519 keys (if missing) + boots 4 AXL processes
+./discover.sh      # queries each node's /topology, writes mesh.json
+./stop.sh          # kill all 4 nodes
+```
 
-# 1. install + build
+`mesh.json` is the single source of truth — `agents/personas.ts` reads it to give
+each persona its own AXL endpoint + peer key.
+
+---
+
+## 🛠️ Quickstart (full)
+
+```bash
+# 0. install + build
 cd clawmarket
 (cd sdk      && npm i && npm run build)
 (cd runtime  && npm i && npm run build)
 (cd agents   && npm i)
 
+# 1. boot the 4-node AXL mesh
+cd axl-mesh && ./start.sh && ./discover.sh && cd ..
+
 # 2. one-time 0G Compute setup (creates ledger, picks provider, ack TEE signer)
 #    requires ≥4 OG in your wallet on 0G testnet
 cd agents
 AGENT_PRIVATE_KEY=0x... npm run bootstrap:compute
-# this writes agents/compute-provider.json — copy provider into env:
 export OG_COMPUTE_PROVIDER=$(jq -r .provider compute-provider.json)
 export OG_MODEL=$(jq -r .model compute-provider.json)
 
 # 3. spawn 3 agents (mints iNFTs + registers ENS subnames)
+#    each subname is registered with that agent's OWN axl.peerid in ENS text records
 AGENT_PRIVATE_KEY=0x... npm run spawn:all
 
-# 4. RUN THE DEMO (in-process: spawns agents, posts a bounty, watches auction live)
+# 3b. (only if you re-launch the mesh and node keys changed)
+#     update existing ENS records to point at the new peer ids
+npm run update:records
+
+# 4. RUN THE DEMO — agents bid across 4 separate AXL nodes
 npm run demo
 ```
 

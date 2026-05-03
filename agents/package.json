@@ -4,12 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "bootstrap:compute": "tsx src/bootstrap-compute.ts",
-    "spawn:all": "tsx src/spawn-all.ts",
-    "run:translator": "tsx src/translator.ts",
-    "run:researcher": "tsx src/researcher.ts",
-    "run:coder": "tsx src/coder.ts",
-    "demo": "tsx src/demo.ts",
+    "bootstrap:compute": "tsx --env-file=.env src/bootstrap-compute.ts",
+    "spawn:all": "tsx --env-file=.env src/spawn-all.ts",
+    "update:records": "tsx --env-file=.env src/update-axl-records.ts",
+    "run:translator": "tsx --env-file=.env src/translator.ts",
+    "run:researcher": "tsx --env-file=.env src/researcher.ts",
+    "run:coder": "tsx --env-file=.env src/coder.ts",
+    "demo": "tsx --env-file=.env src/demo.ts",
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
