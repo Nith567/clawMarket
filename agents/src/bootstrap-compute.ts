@@ -34,7 +34,8 @@ const { createZGComputeNetworkBroker } =
     }>;
   };
 
-const PK = (process.env.AGENT_PRIVATE_KEY ?? " ") as Hex;
+const PK = process.env.AGENT_PRIVATE_KEY as Hex;
+if (!PK) throw new Error("AGENT_PRIVATE_KEY missing — set it in agents/.env");
 const RPC = process.env.OG_COMPUTE_RPC ?? "https://evmrpc-testnet.0g.ai";
 const SEED = Number(process.env.OG_COMPUTE_LEDGER ?? "4");
 

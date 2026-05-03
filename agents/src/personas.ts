@@ -1,24 +1,43 @@
 import type { AgentIdentity } from "@clawmarket/runtime";
 import type { Hex } from "viem";
+import { readFileSync } from "node:fs";
 
-/** Shared AXL connection (single node in dev — reuse for all agents). */
-export const AXL_URL = process.env.AXL_URL ?? "http://127.0.0.1:9002";
-export const AXL_PEER = process.env.AXL_PEER ?? "19088d579db29460c7460da30d4c2e55526406d5c9e5f5fe6304f883e967f33c";
+/**
+ * Load the AXL mesh map written by `axl-mesh/discover.sh`.
+ * Each agent gets its OWN node URL + peer key; they all target `poster` for bids.
+ */
+interface MeshNode { url: string; peerId: string; }
+interface Mesh { poster: MeshNode; translator: MeshNode; researcher: MeshNode; coder: MeshNode; }
 
-/** A given hackathon-funded faucet wallet — all 3 agents are owned by it for the demo. */
-const PK = (process.env.AGENT_PRIVATE_KEY ?? " ") as Hex;
+function loadMesh(): Mesh {
+  const path = new URL("../../axl-mesh/mesh.json", import.meta.url);
+  try {
+    return JSON.parse(readFileSync(path, "utf8")) as Mesh;
+  } catch {
+    throw new Error(
+      "axl-mesh/mesh.json not found.\n" +
+      "→ run:  cd ../axl-mesh && ./start.sh && ./discover.sh",
+    );
+  }
+}
+export const MESH = loadMesh();
+export const POSTER_AXL = MESH.poster;
+
+const PK = process.env.AGENT_PRIVATE_KEY as Hex;
+if (!PK) throw new Error("AGENT_PRIVATE_KEY missing — set it in agents/.env");
 
 const baseIdentity = {
   privateKey: PK,
-  axlPeerId: AXL_PEER,
-  axlUrl: AXL_URL,
+  posterAxlPeer: MESH.poster.peerId,
   pricePerCall: BigInt(1_000_000_000_000_000n), // 0.001 OG
 };
 
 export const TRANSLATOR: Omit<AgentIdentity, "inftId"> = {
   ...baseIdentity,
   label: "translator",
-  model: process.env.OG_MODEL ?? "qwen3.6-plus",
+  axlUrl: MESH.translator.url,
+  axlPeerId: MESH.translator.peerId,
+  model: process.env.OG_MODEL ?? "qwen/qwen-2.5-7b-instruct",
   skills: ["translate", "summarize"],
   systemPrompt:
     "You are a precise multilingual translation agent on the ClawMarket network. " +
@@ -28,7 +47,9 @@ export const TRANSLATOR: Omit<AgentIdentity, "inftId"> = {
 export const RESEARCHER: Omit<AgentIdentity, "inftId"> = {
   ...baseIdentity,
   label: "researcher",
-  model: process.env.OG_MODEL ?? "qwen3.6-plus",
+  axlUrl: MESH.researcher.url,
+  axlPeerId: MESH.researcher.peerId,
+  model: process.env.OG_MODEL ?? "qwen/qwen-2.5-7b-instruct",
   skills: ["research", "summarize"],
   systemPrompt:
     "You are a research agent on the ClawMarket network. Given a topic, write a tight " +
@@ -38,7 +59,9 @@ export const RESEARCHER: Omit<AgentIdentity, "inftId"> = {
 export const CODER: Omit<AgentIdentity, "inftId"> = {
   ...baseIdentity,
   label: "coder",
-  model: process.env.OG_MODEL ?? "qwen3.6-plus",
+  axlUrl: MESH.coder.url,
+  axlPeerId: MESH.coder.peerId,
+  model: process.env.OG_MODEL ?? "qwen/qwen-2.5-7b-instruct",
   skills: ["code", "debug"],
   systemPrompt:
     "You are a code-writing agent on the ClawMarket network. Output only the requested " +

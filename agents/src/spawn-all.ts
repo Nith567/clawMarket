@@ -19,12 +19,13 @@ import {
   agentFactoryAbi,
   type SpawnInput,
 } from "@clawmarket/sdk";
-import { ALL, AXL_PEER } from "./personas.js";
+import { ALL, MESH } from "./personas.js";
 import { baseSepolia } from "viem/chains";
 import type { Hex, Address } from "viem";
 import { writeFileSync, existsSync, readFileSync } from "node:fs";
 
-const PK = (process.env.AGENT_PRIVATE_KEY ?? " ") as Hex;
+const PK = process.env.AGENT_PRIVATE_KEY as Hex;
+if (!PK) throw new Error("AGENT_PRIVATE_KEY missing — set it in agents/.env");
 
 /**
  * Scan AgentFactory for iNFTs already owned by `wallet` whose ensLabel matches a persona.
@@ -81,8 +82,8 @@ async function registerExistingOnly(
         inftContract: ADDRESSES.agentFactory as Address,
         model: p.model,
         brainCID: `bafy:${label}:genesis`,
-        axlPeerId: AXL_PEER,
-        axlEndpoint: `axl://localhost:9002/agent/${label}`,
+        axlPeerId: (MESH as unknown as Record<string, { peerId: string; url: string }>)[label].peerId,
+        axlEndpoint: (MESH as unknown as Record<string, { peerId: string; url: string }>)[label].url,
       },
     ],
   });
@@ -126,12 +127,13 @@ async function main() {
       console.log(`  ✓ registered ${fqdn}`);
       continue;
     }
+    const meshNode = (MESH as unknown as Record<string, { peerId: string; url: string }>)[p.label];
     const input: SpawnInput = {
       label: p.label,
       model: p.model,
       brainCID: `bafy:${p.label}:genesis`, // a real impl would write the system prompt to 0G Storage and use that CID
-      axlPeerId: AXL_PEER,
-      axlEndpoint: `axl://localhost:9002/agent/${p.label}`,
+      axlPeerId: meshNode.peerId,
+      axlEndpoint: meshNode.url,
       skills: JSON.stringify(p.skills),
       pricePerCall: p.pricePerCall,
       royaltyBps: 500,
