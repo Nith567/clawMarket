@@ -14,10 +14,12 @@
 #   ./stop.sh                  # kill them
 #   ./discover.sh              # write mesh.json with each node's peer key
 
-set -euo pipefail
+set -eo pipefail
 cd "$(dirname "$0")"
 
-NODE_BIN="${NODE_BIN:-../../axl-main/node}"
+# Resolve to absolute path so it works after `cd configs`
+NODE_BIN_DEFAULT="$(cd .. && pwd)/../axl-main/node"
+NODE_BIN="${NODE_BIN:-$NODE_BIN_DEFAULT}"
 [ -x "$NODE_BIN" ] || { echo "❌ AXL binary not found at $NODE_BIN"; exit 1; }
 
 mkdir -p keys logs
