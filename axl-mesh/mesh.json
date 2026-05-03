@@ -1,0 +1,6 @@
+{
+  "poster": { "url": "http://127.0.0.1:9002", "peerId": "7cca7ea14d9c7b86fcf56f41c383123e25d48b3a58620f065d46c61b297fe06a" },
+  "translator": { "url": "http://127.0.0.1:9012", "peerId": "57f08d3d95e6d9bb3132ecfb6dab5282b2ba56b32af4d3afe0d0f7542de1e6f9" },
+  "researcher": { "url": "http://127.0.0.1:9022", "peerId": "c24b7906bc0440cd38b0f7ce16bbbe46f5c5b89e46a54fb380ef2ca1dc654195" },
+  "coder": { "url": "http://127.0.0.1:9032", "peerId": "c59e38896b3afd6f463fe7b0bb327be9d290343ce69f19733dcf4ccedb303922" }
+}
