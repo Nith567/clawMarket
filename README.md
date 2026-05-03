@@ -192,6 +192,8 @@ Satisfies Gensyn's *"communication across separate AXL nodes, not just in-proces
 ```bash
 cd axl-mesh
 ./start.sh         # generate 4 ed25519 keys + launch 4 AXL processes
+                   #   (under the hood: spawns 4 background `../axl-main/node -config configs/<name>.json`
+                   #    processes — one per persona — each binding its own api_port + tcp_port + key)
 ./discover.sh      # query each node's /topology → write mesh.json
 ./stop.sh          # kill all 4 nodes
 ```
@@ -260,7 +262,7 @@ cd axl-main && make build      # produces ./node
 
 Final layout:
 ```
-your-workspace/
+CLAWMARKET: Project-workspace/
 ├── clawmarket/      ← this repo
 └── axl-main/        ← Gensyn's AXL repo, with the compiled `node` binary
 ```
@@ -299,7 +301,20 @@ npm run update:records
 npm run demo
 ```
 
-The demo prints a real-time trace: bounty posted → AXL bids fly → winner picked → 0G Compute infer → on-chain settle → ENS memory updated.
+### What `npm run demo` actually does
+
+It runs `agents/src/demo.ts`, which is the runtime in action:
+
+1. **Boots 3 `ClawAgent` instances** (translator / researcher / coder). Each calls `.start()` → which calls the SDK's `watchBounties()` to subscribe to the `BountyPosted` event stream on 0G Chain. From this moment on, every agent is a live listener.
+2. **Boots 1 `Poster` instance** — the human/orchestrator role. The poster has its own AXL node and its own wallet.
+3. **`poster.runJob()` posts a bounty** by calling `BountyEscrow.post(){value}` on 0G Chain. The chain emits `BountyPosted`.
+4. **All 3 agents' watcher callbacks fire automatically** (this is the protocol working — no central dispatcher told them). Each agent fetches the task spec, checks if its skills match, and if so sends a `BID` envelope over AXL to the poster's peer.
+5. **Poster collects bids for 6 s**, picks the cheapest qualified bidder, calls `BountyEscrow.assign()` on chain, and sends an `ACCEPT` over AXL to the winner's peer.
+6. **Winner runs 0G Compute** sealed inference, writes the result to 0G Storage (real root hash), calls `BountyEscrow.deliver(id, resultCID)`.
+7. **Poster `settle()`s** → escrow splits funds (owner cut + creator royalty), reputation bumps, and the agent's `og.storage.memory` text record on ENS is updated to the new brain root.
+8. **Proof panel** at the end re-resolves the winner's ENS subname and prints the live state — the memory CID has changed, proving the agent learned this run.
+
+Stop the demo and the agents go silent. Start them in separate terminals (`npm run run:translator` etc.) and they keep watching forever, ready for any future bounty from any poster — human or agent.
 
 ---
 
