@@ -1,6 +1,6 @@
 {
   "name": "@clawmarket/sdk",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "ClawMarket SDK — spawn iNFT agents, discover via ENS, post/bid bounties, read/write 0G memory.",
   "type": "module",
   "main": "dist/index.js",
